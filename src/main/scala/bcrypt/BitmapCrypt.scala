@@ -19,22 +19,22 @@ object BitmapCrypt {
         val dataIterator = Source.fromFile(dataFile).toArray.map(_.toByte).iterator
         val fileIterator = Source.fromFile(inputFile).toArray.map(_.toByte).iterator
 
-        var dataByte: Byte = 0.toByte
-        var fileByte: Byte = 0.toByte
-        var resultByte: Byte = 0.toByte
+        var dataByte: Int = 0x0
+        var fileByte: Int = 0x0
+        var resultByte: Int = 0x0
 
         while (dataIterator.hasNext) {
-            resultByte = 0.toByte
+            resultByte = 0x0
             dataByte = dataIterator.next
-            Array((15,4), (240,0)).foreach(e => {
+            Array((0x0f, 0x4), (0xf0, 0x0)).foreach(e => {
                 val (m, i) = e
                 if (fileIterator.hasNext) fileByte = fileIterator.next
                 else throw new Exception("!")
 
-                resultByte = (resultByte | (fileByte & 240 + dataByte & m >> i)).toByte
+                resultByte = resultByte | (fileByte & 0xf0 + dataByte & m >> i)
             })
 
-            outputSource
+            outputSource.write(resultByte.toByte)
         }
 
         outputFile.getName
