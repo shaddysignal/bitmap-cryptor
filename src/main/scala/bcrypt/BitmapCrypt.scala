@@ -26,7 +26,7 @@ object BitmapCrypt {
         while (dataIterator.hasNext) {
             resultByte = 0x0
             dataByte = dataIterator.next
-            Array((0x0f, 0x4), (0xf0, 0x0)).foreach(e => {
+            Array((0x0f, 0x04), (0xf0, 0x00)).foreach(e => {
                 val (m, i) = e
                 if (fileIterator.hasNext) fileByte = fileIterator.next
                 else throw new Exception("!")
@@ -36,6 +36,9 @@ object BitmapCrypt {
 
             outputSource.write(resultByte.toByte)
         }
+
+        outputSource.flush
+        outputSource.close
 
         outputFile.getName
     }
