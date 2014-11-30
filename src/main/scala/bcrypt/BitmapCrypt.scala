@@ -14,28 +14,37 @@ object BitmapCrypt {
             new File("/home/ashubin/projects/scala/bitmap-cryptor/tmp/output.bmp")
         outputFile.createNewFile
 
-        val outputSource = new PrintWriter(outputFile)
+        val outputSource = new PrintWriter(outputFile, "ISO-8859-1")
+        val dataSource = Source.fromFile(dataFile, "UTF8").toArray
+        val fileSource = Source.fromFile(inputFile, "ISO-8859-1").toArray
 
-        val dataIterator = Source.fromFile(dataFile).toArray.map(_.toByte).iterator
-        val fileIterator = Source.fromFile(inputFile).toArray.map(_.toByte).iterator
+        val dataIterator = dataSource.iterator
+        val fileIterator = fileSource.iterator
 
         var dataByte: Int = 0x0
         var fileByte: Int = 0x0
         var resultByte: Int = 0x0
 
+        // write header info without changes
+        var offset = (10 until 14).map(i => { fileSource(i) * math.pow(256, i - 10) }).reduceLeft(_ + _).toInt
+        for (i <- 0 until offset if fileIterator.hasNext) outputSource.write(fileIterator.next)
+
+        // write data until it empty
         while (dataIterator.hasNext) {
             resultByte = 0x0
             dataByte = dataIterator.next
-            Array((0x0f, 0x04), (0xf0, 0x00)).foreach(e => {
+            Array((0x03, 0x00), (0x0c, 0x02), (0x30, 0x04), (0xc0, 0x06)).foreach(e => {
                 val (m, i) = e
                 if (fileIterator.hasNext) fileByte = fileIterator.next
                 else throw new Exception("!")
 
-                resultByte = resultByte | (fileByte & 0xf0 + dataByte & m >> i)
+                resultByte = (fileByte & 0xfc) + ((dataByte & m) >> i)
+                outputSource.write(resultByte.toChar)
             })
-
-            outputSource.write(resultByte.toByte)
         }
+
+        // write the rest file unchanged
+        while (fileIterator.hasNext) outputSource.write(fileIterator.next)
 
         outputSource.flush
         outputSource.close
