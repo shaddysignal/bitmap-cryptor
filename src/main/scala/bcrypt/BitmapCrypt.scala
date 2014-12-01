@@ -26,7 +26,7 @@ object BitmapCrypt {
         var resultByte: Int = 0x0
 
         // write header info without changes
-        var offset = (10 until 14).map(i => { fileSource(i) * math.pow(256, i - 10) }).reduceLeft(_ + _).toInt
+        var offset = getHeaderSize(fileSource)
         for (i <- 0 until offset if fileIterator.hasNext) outputSource.write(fileIterator.next)
 
         // write data until it empty
@@ -53,8 +53,38 @@ object BitmapCrypt {
     }
 
     def decrypt(fileName: String, secretKey: String = "abcde"): String = {
-        ""
+        val inputFile =
+            new File("/home/ashubin/projects/scala/bitmap-cryptor/tmp/output.bmp")
+        val outputFile =
+            new File("/home/ashubin/projects/scala/bitmap-cryptor/tmp/message.txt")
+
+        val inputSource = Source.fromFile(inputFile, "ISO-8859-1").toArray
+        val outputSource = new PrintWriter(outputFile, "UTF8")
+
+        val inputIterator = inputSource.iterator
+
+        val offset = getHeaderSize(inputSource)
+        for (i <- 0 until offset if inputIterator.hasNext) None
+
+        def iterate(ib: Int, db: Int, s: Int): Int = {
+            if (inputIterator.hasNext && s < 0x08)
+                iterate(inputIterator.next, db | ((ib & 0x03) << s), s + 0x02)
+            else db
+        }
+
+        while (inputIterator.hasNext) {
+            var dataByte = iterate(inputIterator.next, 0x0, 0x0)
+            outputSource.write(dataByte.toChar)
+        }
+
+        outputSource.flush
+        outputSource.close
+
+        outputFile.getName
     }
+
+    private def getHeaderSize(source: Array[Char]): Int =
+        (10 until 14).map(i => { source(i) * math.pow(256, i - 10) }).reduceLeft(_ + _).toInt
 
 }
 
