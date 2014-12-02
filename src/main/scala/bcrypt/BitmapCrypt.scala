@@ -15,7 +15,7 @@ object BitmapCrypt {
         outputFile.createNewFile
 
         val outputSource = new PrintWriter(outputFile, "ISO-8859-1")
-        val dataSource = Source.fromFile(dataFile, "UTF8").toArray
+        val dataSource = Source.fromFile(dataFile, "UTF-8").toArray
         val fileSource = Source.fromFile(inputFile, "ISO-8859-1").toArray
 
         val dataIterator = dataSource.iterator
@@ -33,12 +33,11 @@ object BitmapCrypt {
         while (dataIterator.hasNext) {
             resultByte = 0x0
             dataByte = dataIterator.next
-            Array((0x03, 0x00), (0x0c, 0x02), (0x30, 0x04), (0xc0, 0x06)).foreach(e => {
-                val (m, i) = e
+            Array(0x06, 0x04, 0x02, 0x00).foreach(s => {
                 if (fileIterator.hasNext) fileByte = fileIterator.next
                 else throw new Exception("!")
 
-                resultByte = (fileByte & 0xfc) + ((dataByte & m) >> i)
+                resultByte = (fileByte & 0xfc) + ((dataByte >> s) & 0x03)
                 outputSource.write(resultByte.toChar)
             })
         }
@@ -59,21 +58,21 @@ object BitmapCrypt {
             new File("/home/ashubin/projects/scala/bitmap-cryptor/tmp/message.txt")
 
         val inputSource = Source.fromFile(inputFile, "ISO-8859-1").toArray
-        val outputSource = new PrintWriter(outputFile, "UTF8")
+        val outputSource = new PrintWriter(outputFile, "UTF-8")
 
         val inputIterator = inputSource.iterator
 
         val offset = getHeaderSize(inputSource)
-        for (i <- 0 until offset if inputIterator.hasNext) None
+        for (i <- 0 until offset if inputIterator.hasNext) inputIterator.next
 
         def iterate(ib: Int, db: Int, s: Int): Int = {
-            if (inputIterator.hasNext && s < 0x08)
-                iterate(inputIterator.next, db | ((ib & 0x03) << s), s + 0x02)
-            else db
+            if (inputIterator.hasNext && s > 0x00)
+                iterate(inputIterator.next, db | ((ib & 0x03) << s), s - 0x02)
+            else db | ((ib & 0x03) << s)
         }
 
         while (inputIterator.hasNext) {
-            var dataByte = iterate(inputIterator.next, 0x0, 0x0)
+            var dataByte = iterate(inputIterator.next, 0x0, 0x06)
             outputSource.write(dataByte.toChar)
         }
 
