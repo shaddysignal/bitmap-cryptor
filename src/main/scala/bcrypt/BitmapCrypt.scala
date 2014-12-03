@@ -21,26 +21,26 @@ object BitmapCrypt {
         val dataIterator = dataSource.iterator
         val fileIterator = fileSource.iterator
 
-        var dataByte: Int = 0x0
-        var fileByte: Int = 0x0
-        var resultByte: Int = 0x0
+        // has side effect, it reads from fileIterator and writes to outputSource
+        def writeByte(db: Int) {
+            def iterate(fb: Int, s: Int) {
+                outputSource.write((fb & 0xfc) + ((db >> s) & 0x03))
+                if (fileIterator.hasNext && s > 0x00)
+                    iterate(fileIterator.next, s - 0x02)
+            }
+
+            iterate(fileIterator.next, 0x06)
+        }
 
         // write header info without changes
         var offset = getHeaderSize(fileSource)
         for (i <- 0 until offset if fileIterator.hasNext) outputSource.write(fileIterator.next)
 
         // write data until it empty
-        while (dataIterator.hasNext) {
-            resultByte = 0x0
-            dataByte = dataIterator.next
-            Array(0x06, 0x04, 0x02, 0x00).foreach(s => {
-                if (fileIterator.hasNext) fileByte = fileIterator.next
-                else throw new Exception("!")
+        while (dataIterator.hasNext) writeByte(dataIterator.next)
 
-                resultByte = (fileByte & 0xfc) + ((dataByte >> s) & 0x03)
-                outputSource.write(resultByte.toChar)
-            })
-        }
+        // write end data
+        if (fileIterator.hasNext) writeByte(-1)
 
         // write the rest file unchanged
         while (fileIterator.hasNext) outputSource.write(fileIterator.next)
@@ -65,15 +65,17 @@ object BitmapCrypt {
         val offset = getHeaderSize(inputSource)
         for (i <- 0 until offset if inputIterator.hasNext) inputIterator.next
 
-        def iterate(ib: Int, db: Int, s: Int): Int = {
+        // has side effect, it reads from inputIterator
+        def readByte(ib: Int, db: Int, s: Int): Int = {
             if (inputIterator.hasNext && s > 0x00)
-                iterate(inputIterator.next, db | ((ib & 0x03) << s), s - 0x02)
+                readByte(inputIterator.next, db | ((ib & 0x03) << s), s - 0x02)
             else db | ((ib & 0x03) << s)
         }
 
-        while (inputIterator.hasNext) {
-            var dataByte = iterate(inputIterator.next, 0x0, 0x06)
-            outputSource.write(dataByte.toChar)
+        var dataByte = 0x0
+        while (inputIterator.hasNext && dataByte != 255) {
+            dataByte = readByte(inputIterator.next, 0x0, 0x06)
+            outputSource.write(dataByte)
         }
 
         outputSource.flush
